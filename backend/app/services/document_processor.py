@@ -197,7 +197,7 @@ class DocumentProcessor:
             
             style_name = para.style.name if para.style else None
             
-            # Check for abstract styles
+            # Check for abstract-related styles
             if style_name and 'abstract' in style_name.lower():
                 return DetectedElement(
                     content=text,
@@ -207,17 +207,31 @@ class DocumentProcessor:
                     paragraph_index=i
                 )
             
-            # Check for abstract keyword
-            if text.lower().startswith('abstract'):
-                # Get the content (might be in same or next paragraph)
-                content = text
-                if text.lower().strip() == 'abstract' and i + 1 < len(paragraphs):
-                    content = paragraphs[i + 1].text.strip()
+            # Check for abstract keyword pattern
+            if re.match(r'^abstract[\s\-:—]', text, re.IGNORECASE):
+                # Remove the "Abstract" prefix and any separators
+                abstract_text = re.sub(r'^abstract[\s\-:—]+', '', text, flags=re.IGNORECASE)
+                
+                # Collect following paragraphs until we hit a section or keywords
+                for j in range(i + 1, len(paragraphs)):
+                    next_para = paragraphs[j]
+                    next_text = next_para.text.strip()
+                    
+                    # Stop if we hit keywords, sections, or another major element
+                    if (re.match(r'^(keywords|index terms)[\s\-:—]', next_text, re.IGNORECASE) or
+                        re.match(r'^\d+\.', next_text) or  # Numbered section
+                        re.match(r'^[IVX]+\.', next_text, re.IGNORECASE) or  # Roman numerals
+                        len(next_text) < 20):  # Too short to be abstract content
+                        break
+                    
+                    # Add this paragraph to abstract
+                    if next_text:
+                        abstract_text += '\n' + next_text
                 
                 return DetectedElement(
-                    content=content.replace('Abstract', '').replace('ABSTRACT', '').strip(),
-                    confidence=0.9,
-                    reasoning="Detected by 'Abstract' keyword",
+                    content=abstract_text.strip(),
+                    confidence=0.90,
+                    reasoning='Multi-paragraph abstract detected starting with "Abstract"',
                     paragraph_index=i
                 )
         
@@ -225,28 +239,34 @@ class DocumentProcessor:
     
     def _detect_keywords(self, paragraphs: List[Any], styles: Dict[str, Any]) -> Optional[DetectedElement]:
         """Detect keywords using patterns and styles"""
-        keyword_patterns = [
-            r'keywords?\s*[:\-]\s*(.+)',
-            r'key\s*words?\s*[:\-]\s*(.+)',
-            r'index\s*terms?\s*[:\-]\s*(.+)'
-        ]
-        
         for i, para in enumerate(paragraphs):
             text = para.text.strip()
             if not text:
                 continue
             
-            # Check each pattern
-            for pattern in keyword_patterns:
-                match = re.search(pattern, text, re.IGNORECASE)
-                if match:
-                    keywords = match.group(1).strip()
-                    return DetectedElement(
-                        content=keywords,
-                        confidence=0.9,
-                        reasoning=f"Detected using pattern: {pattern}",
-                        paragraph_index=i
-                    )
+            style_name = para.style.name if para.style else None
+            
+            # Check for keywords-related styles
+            if style_name and 'keyword' in style_name.lower():
+                return DetectedElement(
+                    content=text,
+                    confidence=0.95,
+                    reasoning=f"Detected using Word style: {style_name}",
+                    word_style=style_name,
+                    paragraph_index=i
+                )
+            
+            # Check for keywords pattern - based on reference implementation
+            if re.match(r'^(keywords|index terms)[\s\-:—]', text, re.IGNORECASE):
+                # Remove the "Keywords" or "Index Terms" prefix and any separators
+                keywords_text = re.sub(r'^(keywords|index terms)[\s\-:—]+', '', text, flags=re.IGNORECASE)
+                
+                return DetectedElement(
+                    content=keywords_text.strip(),
+                    confidence=0.95,
+                    reasoning='Keywords detected and prefix removed',
+                    paragraph_index=i
+                )
         
         return None
     
