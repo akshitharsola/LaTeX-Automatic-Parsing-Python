@@ -60,7 +60,7 @@ class DocumentProcessor:
             keywords = self._detect_keywords(paragraphs, word_styles)
             
             # Extract structural elements
-            sections = self._extract_sections(paragraphs, word_styles) if self.config.detect_equations else []
+            sections = self._extract_sections(paragraphs, word_styles) if self.config.detect_sections else []
             lists = await self._extract_lists(doc, doc_result) if self.config.detect_lists else []
             tables = self._extract_tables(doc, doc_result) if self.config.detect_tables else []
             equations = await self._extract_equations(doc, doc_result) if self.config.detect_equations else []
@@ -209,11 +209,25 @@ class DocumentProcessor:
             
             # Check for abstract keyword pattern
             if re.match(r'^abstract[\s\-:—]', text, re.IGNORECASE):
-                # Remove the "Abstract" prefix and any separators
-                abstract_text = re.sub(r'^abstract[\s\-:—]+', '', text, flags=re.IGNORECASE)
+                # Remove the "Abstract" prefix and any separators more carefully
+                # Use a more precise regex that captures both separator and content
+                match = re.match(r'^abstract([\s\-:—]+)(.*)$', text, re.IGNORECASE | re.DOTALL)
+                if match and match.group(2).strip():
+                    # Found content after the separator
+                    abstract_text = match.group(2).strip()
+                else:
+                    # No content after separator, check next paragraph
+                    abstract_text = ""
+                    if i + 1 < len(paragraphs):
+                        next_para = paragraphs[i + 1]
+                        next_text = next_para.text.strip()
+                        if next_text and len(next_text) > 10:  # Likely abstract content
+                            abstract_text = next_text
                 
                 # Collect following paragraphs until we hit a section or keywords
-                for j in range(i + 1, len(paragraphs)):
+                # Start from next paragraph if we already consumed one
+                start_idx = i + 2 if not match or not match.group(2).strip() else i + 1
+                for j in range(start_idx, len(paragraphs)):
                     next_para = paragraphs[j]
                     next_text = next_para.text.strip()
                     
@@ -338,7 +352,9 @@ class DocumentProcessor:
             
             text = para.text.strip()
             if text:
-                content_parts.append(text)
+                # Skip abstract, keywords, and other special sections if they appear after a heading
+                if not any(skip_word in text.lower() for skip_word in ['abstract', 'keywords', 'index terms']):
+                    content_parts.append(text)
         
         return '\n'.join(content_parts)
     

@@ -157,6 +157,14 @@ Advanced document processing system that converts DOCX files to LaTeX format usi
 For development reference and implementation patterns, refer to the previous React/TypeScript implementation:
 **Location**: `/Users/akshitharsola/Documents/Overleaf Automation/Automation/docx-analyzer`
 
+## 📄 Official LaTeX Templates
+
+Official template files are stored for reference and structure validation:
+**Location**: `/Users/akshitharsola/Documents/Overleaf Automation/TEMPLATES`
+- `IEEE.tex` - IEEE Conference template
+- `ACM.tex` - ACM Conference template  
+- `Springer.tex` - Springer Nature template
+
 ### Key Reference Files:
 - `src/utils/DocumentParser.ts` - Document parsing logic with abstract/keywords detection
 - `src/utils/LatexGenerator.ts` - LaTeX generation patterns

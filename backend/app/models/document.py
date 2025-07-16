@@ -178,6 +178,7 @@ class DocumentAnalysis(BaseModel):
 class ProcessingConfig(BaseModel):
     """Configuration for document processing"""
     latex_template: LatexTemplate = Field(default=LatexTemplate.IEEE, description="LaTeX template to use")
+    detect_sections: bool = Field(default=True, description="Enable section detection")
     detect_equations: bool = Field(default=True, description="Enable equation detection")
     detect_tables: bool = Field(default=True, description="Enable table detection")
     detect_lists: bool = Field(default=True, description="Enable list detection")
